@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fake-news-app
+  labels:
+    app: fake-news
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fake-news
+  template:
+    metadata:
+      labels:
+        app: fake-news
+    spec:
+      containers:
+      - name: fake-news-app
+        image: ${ACR_NAME}.azurecr.io/fake-news-app:latest
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: acr-secret # If not using managed identity attachment

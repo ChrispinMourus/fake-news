@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+
+    environment {
+        // These should be configured in Jenkins Credentials / Global Settings
+        ACR_NAME = "fakenewsacr2026"
+        RESOURCE_GROUP = "fake-news-rg"
+        AKS_CLUSTER = "fake-news-aks"
+        IMAGE_NAME = "fake-news-app"
+        AZURE_CREDENTIALS_ID = "azure-service-principal"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Navigate to docker directory and build
+                    sh "docker build -t ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${BUILD_NUMBER} -f docker/Dockerfile ."
+                    sh "docker tag ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${BUILD_NUMBER} ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Push to ACR') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: env.AZURE_CREDENTIALS_ID, passwordVariable: 'AZURE_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
+                    sh "az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_SECRET} --tenant ${TENANT_ID}"
+                    sh "az acr login --name ${ACR_NAME}"
+                    sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${BUILD_NUMBER}"
+                    sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Infrastructure Provisioning (Terraform)') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform init'
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Deploy to AKS (Ansible)') {
+            steps {
+                script {
+                    // Update the deployment.yaml with the correct ACR name if needed
+                    // (Managed via environment variables in the YAML usually, or sed)
+                    sh "az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER} --overwrite-existing"
+                    dir('ansible') {
+                        sh "ansible-playbook deploy.yml"
+                    }
+                }
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                sh "kubectl get pods"
+                sh "kubectl get svc"
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Deployment Successfully completed!'
+        }
+        failure {
+            echo 'Deployment Failed. Check logs for details.'
+        }
+    }
+}

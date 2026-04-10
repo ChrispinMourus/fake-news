@@ -1,0 +1,13 @@
+---
+- name: Deploy Fake News Detection App to AKS
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Apply Deployment
+      command: kubectl apply -f ../k8s/deployment.yaml
+
+    - name: Apply Service
+      command: kubectl apply -f ../k8s/service.yaml
+
+    - name: Verify Deployment
+      command: kubectl rollout status deployment/fake-news-app
