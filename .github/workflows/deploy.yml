@@ -24,14 +24,21 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          image_tag=$DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
-          latest_tag=$DOCKERHUB_USERNAME/$IMAGE_NAME:latest
+          # Convert username to lowercase for Docker Hub compliance
+          USER_LOWER=$(echo "${{ env.DOCKERHUB_USERNAME }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_TAG=$USER_LOWER/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          LATEST_TAG=$USER_LOWER/${{ env.IMAGE_NAME }}:latest
           
-          docker build -t $image_tag -f docker/Dockerfile .
-          docker tag $image_tag $latest_tag
+          echo "Building image: $IMAGE_TAG"
           
-          docker push $image_tag
-          docker push $latest_tag
+          docker build -t $IMAGE_TAG -f docker/Dockerfile .
+          docker tag $IMAGE_TAG $LATEST_TAG
+          
+          docker push $IMAGE_TAG
+          docker push $LATEST_TAG
+          
+          # Store the lowercase tag for the next steps
+          echo "FULL_IMAGE_NAME=$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Set Kubernetes Context
         uses: azure/k8s-set-context@v3
@@ -41,8 +48,7 @@ jobs:
 
       - name: Substitute Image in Manifests
         run: |
-          image_full_path=$DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
-          sed -i "s|DOCKER_IMAGE_PLACEHOLDER|$image_full_path|g" k8s/deployment.yaml
+          sed -i "s|DOCKER_IMAGE_PLACEHOLDER|${{ env.FULL_IMAGE_NAME }}|g" k8s/deployment.yaml
 
       - name: Deploy to AKS
         run: |
