@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: fake-news-app
-        image: ${ACR_NAME}.azurecr.io/fake-news-app:latest
+        image: DOCKER_IMAGE_PLACEHOLDER
         ports:
         - containerPort: 5000
         resources:

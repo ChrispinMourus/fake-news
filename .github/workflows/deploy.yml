@@ -6,10 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  ACR_NAME: ${{ secrets.ACR_NAME }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   IMAGE_NAME: fake-news-app
-  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
-  AKS_CLUSTER: ${{ secrets.AKS_CLUSTER }}
 
 jobs:
   build-and-deploy:
@@ -18,30 +16,33 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - name: Docker Hub Login
+        uses: docker/login-action@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: ACR Login
-        run: az acr login --name $ACR_NAME
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} -f docker/Dockerfile .
-          docker tag $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
-          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
-          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
+          image_tag=$DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
+          latest_tag=$DOCKERHUB_USERNAME/$IMAGE_NAME:latest
+          
+          docker build -t $image_tag -f docker/Dockerfile .
+          docker tag $image_tag $latest_tag
+          
+          docker push $image_tag
+          docker push $latest_tag
 
-      - name: Get AKS Context
-        uses: azure/aks-set-context@v3
+      - name: Set Kubernetes Context
+        uses: azure/k8s-set-context@v3
         with:
-          resource-group: ${{ env.RESOURCE_GROUP }}
-          cluster-name: ${{ env.AKS_CLUSTER }}
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
 
-      - name: Substitute ACR Name in Manifests
+      - name: Substitute Image in Manifests
         run: |
-          sed -i "s/\${ACR_NAME}/$ACR_NAME/g" k8s/deployment.yaml
+          image_full_path=$DOCKERHUB_USERNAME/$IMAGE_NAME:${{ github.sha }}
+          sed -i "s|DOCKER_IMAGE_PLACEHOLDER|$image_full_path|g" k8s/deployment.yaml
 
       - name: Deploy to AKS
         run: |
