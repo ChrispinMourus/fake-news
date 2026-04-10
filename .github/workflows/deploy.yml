@@ -40,11 +40,11 @@ jobs:
           # Store the lowercase tag for the next steps
           echo "FULL_IMAGE_NAME=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Set Kubernetes Context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
+      - name: Configure Kubernetes Context (Kubeconfig)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Substitute Image in Manifests
         run: |
