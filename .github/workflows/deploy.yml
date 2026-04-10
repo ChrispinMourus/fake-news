@@ -1,4 +1,4 @@
-name: Deploy Fake News App to AKS
+name: CI - Build and Push to Docker Hub
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   IMAGE_NAME: fake-news-app
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -26,35 +26,9 @@ jobs:
         run: |
           # Convert username to lowercase for Docker Hub compliance
           USER_LOWER=$(echo "${{ env.DOCKERHUB_USERNAME }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_TAG=$USER_LOWER/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          LATEST_TAG=$USER_LOWER/${{ env.IMAGE_NAME }}:latest
+          IMAGE_TAG=$USER_LOWER/${{ env.IMAGE_NAME }}:latest
           
-          echo "Building image: $IMAGE_TAG"
+          echo "Building and Pushing image: $IMAGE_TAG"
           
           docker build -t $IMAGE_TAG -f docker/Dockerfile .
-          docker tag $IMAGE_TAG $LATEST_TAG
-          
           docker push $IMAGE_TAG
-          docker push $LATEST_TAG
-          
-          # Store the lowercase tag for the next steps
-          echo "FULL_IMAGE_NAME=$IMAGE_TAG" >> $GITHUB_ENV
-
-      - name: Configure Kubernetes Context (Kubeconfig)
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-
-      - name: Substitute Image in Manifests
-        run: |
-          sed -i "s|DOCKER_IMAGE_PLACEHOLDER|${{ env.FULL_IMAGE_NAME }}|g" k8s/deployment.yaml
-
-      - name: Deploy to AKS
-        run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
-      - name: Verify Rollout
-        run: |
-          kubectl rollout status deployment/fake-news-app

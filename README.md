@@ -1,61 +1,43 @@
 # Veritas AI - Fake News Detection System
 
 ## 🎯 Project Overview
-This project is an end-to-end AI-powered web application that classifies news articles as **FAKE** or **REAL**. It uses a Machine Learning model (Logistic Regression + TF-IDF) and is deployed on **Kubernetes (AKS)** via a fully automated **GitHub Actions CI/CD Pipeline**.
+This project is an AI-powered web application that classifies news articles as **FAKE** or **REAL**. 
+
+This version is optimized for **Local Kubernetes (Docker Desktop)** development with a simplified **GitHub Actions CI** pipeline for image builds.
 
 ---
 
 ## 🏗️ Architecture
-```mermaid
-graph TD
-    A[User] -->|Access via Browser| B[Flask Web App]
-    B -->|Predict| C[ML Model (.pkl)]
-    D[GitHub Push] -->|Trigger| E[GitHub Actions]
-    E -->|1. Build Image| F[Docker]
-    F -->|2. Push| G[Docker Hub]
-    E -->|3. Deploy| H[Kubernetes]
-    H -->|Scalable Pods| I[App Instances]
-    I -->|Expose| J[LoadBalancer Service]
-    J -->|Public IP| A
-```
+1.  **CI (GitHub Actions)**: Automatically builds and pushes your Docker image to **Docker Hub** on every push.
+2.  **CD (Local Deployment)**: You manage the Kubernetes deployment locally on your machine using **Docker Desktop**.
 
 ## 📁 Project Structure
 - `app/`: Flask application code, ML model, and training script.
 - `docker/`: Dockerfile for containerization.
 - `k8s/`: Kubernetes Deployment and Service manifests.
-- `.github/workflows/`: CI/CD pipeline definition.
-
-## 🚀 Features
-1.  **AI/ML Integration**: Pre-trained model using Scikit-learn with N-gram phrase detection.
-2.  **Containerization (Docker)**: Lightweight production image for the Flask application.
-3.  **CI/CD (GitHub Actions)**: Automatic build, push, and deployment on every push to `main`.
-4.  **Self-Healing (Kubernetes)**: Configured with 2 replicas and health checks to ensure availability.
-5.  **Modern UI**: Dark-mode interface with glassmorphism and micro-animations.
+- `.github/workflows/`: GitHub Actions CI pipeline.
 
 ---
 
 ## 🛠️ Setup Instructions
 
-### 1. Model Training (Local)
-```bash
-pip install -r app/requirements.txt
-python app/train_model.py
-```
+### 1. Build and CI Setup
+1.  Add your Docker Hub secrets to GitHub: `DOCKERHUB_USERNAME` and `DOCKERHUB_PASSWORD`.
+2.  Push your code to `main`. GitHub will automatically build and host your image.
 
-### 2. CI/CD Configuration (GitHub Actions)
-Add the following **Secrets** to your GitHub Repository:
-- `DOCKERHUB_USERNAME`: Your Docker Hub username.
-- `DOCKERHUB_PASSWORD`: Your Docker Hub password/PAT.
-- `KUBECONFIG`: The content of your Kubernetes config file.
+### 2. Local Kubernetes Deployment (Docker Desktop)
+1.  **Enable Kubernetes** in your Docker Desktop settings.
+2.  **Update the Image Name**: Open `k8s/deployment.yaml` and change `your-dockerhub-username` to your actual Docker Hub username.
+3.  **Deploy Locally**:
+    ```bash
+    # Navigate to project root
+    kubectl apply -f k8s/
+    ```
 
-### 3. Deployment
-Simply push your code to the `main` branch, and GitHub Actions will handle the rest!
-```bash
-git add .
-git commit -m "Deploy to Kubernetes"
-git push origin main
-```
+### 3. Verification
+- View running pods: `kubectl get pods`
+- Access the app: Once the service is running, it will be available via the LoadBalancer IP (usually `localhost:5000` on Docker Desktop).
 
 ---
 **Senior DevOps Engineer & AI Developer**
-*Project optimized for scalability and performance.*
+*Project optimized for Local Kubernetes and GitHub CI.*
