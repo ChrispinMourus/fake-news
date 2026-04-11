@@ -39,5 +39,32 @@ This version is optimized for **Local Kubernetes (Docker Desktop)** development 
 - Access the app: Once the service is running, it will be available via the LoadBalancer IP (usually `localhost:5000` on Docker Desktop).
 
 ---
+
+## 🚀 Advanced Deployment (Cloud)
+
+### 1. Infrastructure Provisioning (Terraform)
+Provision a production-ready Azure Kubernetes Service (AKS) cluster.
+1.  **Initialize**: `cd terraform && terraform init`
+2.  **Plan**: `terraform plan`
+3.  **Apply**: `terraform apply -auto-approve`
+4.  **Connect**: Run the command provided in the outputs to configure `kubectl`:
+    ```bash
+    az aks get-credentials --resource-group veritas-ai-rg --name veritas-aks
+    ```
+
+### 2. Configuration Management & Deployment (Ansible)
+Automate the application deployment and health checks.
+1.  **Install Requirements**:
+    ```bash
+    pip install kubernetes
+    ansible-galaxy collection install kubernetes.core
+    ```
+2.  **Run Playbook**:
+    ```bash
+    cd ansible && ansible-playbook playbook.yml
+    ```
+
+---
+
 **Senior DevOps Engineer & AI Developer**
-*Project optimized for Local Kubernetes and GitHub CI.*
+*Project optimized for Local Kubernetes and Cloud Azure AKS.*

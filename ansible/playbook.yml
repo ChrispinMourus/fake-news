@@ -1,0 +1,61 @@
+---
+- name: Deploy Veritas AI to Kubernetes Cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    k8s_manifest_dir: "../k8s"
+    app_name: "fake-news"
+    namespace: "default"
+    image_tag: "latest"
+    dockerhub_user: "chrispinmourus" # Default, usually overridden by --extra-vars
+
+  tasks:
+    - name: Ensure Namespace exists
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        kind: Namespace
+        state: present
+
+    - name: Apply Service manifest
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ k8s_manifest_dir }}/service.yaml"
+        namespace: "{{ namespace }}"
+
+    - name: Apply Deployment manifest with dynamic image
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', k8s_manifest_dir + '/deployment.yaml') | from_yaml }}"
+        namespace: "{{ namespace }}"
+      vars:
+        # This will be used by the template lookup if we use jinja in deployment.yaml
+        # However, k8s module also supports 'template' directly or we can just patch it.
+        # Let's use 'src' for simplicity but we might need to change deployment.yaml to a template.
+        # Actually, let's keep it simple and just use 'definition' with patch if needed.
+        full_image: "{{ dockerhub_user }}/{{ app_name }}-app:{{ image_tag }}"
+
+    - name: Wait for Deployment to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+      register: deployment_info
+      until: >
+        deployment_info.resources | length > 0 and
+        deployment_info.resources[0].status.readyReplicas is defined and
+        deployment_info.resources[0].status.readyReplicas == deployment_info.resources[0].spec.replicas
+      retries: 30
+      delay: 10
+
+    - name: Get Service information
+      kubernetes.core.k8s_info:
+        kind: Service
+        name: "{{ app_name }}-service"
+        namespace: "{{ namespace }}"
+      register: service_info
+
+    - name: Display App URL
+      debug:
+        msg: "App is available at: {{ service_info.resources[0].status.loadBalancer.ingress[0].ip if (service_info.resources[0].status.loadBalancer.ingress is defined and service_info.resources[0].status.loadBalancer.ingress | length > 0) else 'Pending External IP...' }}"

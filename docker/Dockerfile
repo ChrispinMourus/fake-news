@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m nltk.downloader punkt punkt_tab stopwords
 
 # Copy the rest of the application
 COPY app/ .

@@ -32,3 +32,41 @@ jobs:
           
           docker build -t $IMAGE_TAG -f docker/Dockerfile .
           docker push $IMAGE_TAG
+
+  deploy-to-aks:
+    name: Deploy to Azure AKS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS Credentials
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: veritas-ai-rg # Should match terraform variables
+          cluster-name: veritas-aks      # Should match terraform variables
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Ansible and Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible kubernetes
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Run Ansible Playbook
+        run: |
+          # Convert username to lowercase for Docker Hub compliance
+          USER_LOWER=$(echo "${{ env.DOCKERHUB_USERNAME }}" | tr '[:upper:]' '[:lower:]')
+          
+          cd ansible
+          ansible-playbook playbook.yml --extra-vars "dockerhub_user=$USER_LOWER image_tag=latest"

@@ -9,9 +9,7 @@ import os
 app = Flask(__name__)
 
 # Load stop words
-nltk.download('punkt')
-nltk.download('punkt_tab')
-nltk.download('stopwords')
+# NLTK data (punkt, stopwords) is pre-installed in the Docker image
 stop_words = set(stopwords.words('english'))
 
 def preprocess_text(text):

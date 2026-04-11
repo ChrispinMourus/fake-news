@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fake-news-app
+  name: fake-news
   labels:
     app: fake-news
 spec:
@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: fake-news-app
-        image: your-dockerhub-username/fake-news-app:latest
+        image: "{{ full_image | default('chrispinmourus/fake-news-app:latest') }}"
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
         resources:
@@ -30,13 +31,11 @@ spec:
           httpGet:
             path: /
             port: 5000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
             port: 5000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 10
           periodSeconds: 5
-      imagePullSecrets:
-      - name: acr-secret # If not using managed identity attachment
